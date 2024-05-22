@@ -3,9 +3,10 @@
 Tool thu thập dữ liệu từ các trang báo tiếng Việt, phục vụ cho mục đích học tập :). Công cụ thu thập dữ liệu từ các
 trang báo điện tử lớn như:
 
-* [VnExpress](https://vnexpress.net/)
-* [Tuổi trẻ](https://tuoitre.vn/)
 * [Thanh niên](https://thanhnien.vn/)
+* [VnExpress](https://vnexpress.net/) -> chưa thực hiện
+* [Tuổi trẻ](https://tuoitre.vn/) -> chưa thực hiiện
+
 
 ## 2. Phiên bản
 Công cụ thu thập dữ liệu cho bài toán phân loại văn bản. Dữ liệu thu thập được tổ chức thành các tập dữ liệu và các phiên bản
@@ -25,7 +26,8 @@ khác nhau:
   * Công nghệ
 
 Nội dung
-* Phiên bản **t** (hnews_2_t): chỉ bao gồm tiêu đề (title) bài báo
+* Phiên bản **t** (hnews_2_t): chỉ bao gồm tiêu đề (title) bài báo 
+* Phiên bản **td** (hnews_2_td): bao gồm tiêu đề (title) và mô tả ngắn (description) của bài báo
 * Phiên bản **f** (hnews_2_f): bao gồm toàn bộ bài báo
 
 ## 3. Cấu trúc tập dữ liệu
