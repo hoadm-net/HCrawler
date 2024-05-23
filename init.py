@@ -21,4 +21,5 @@ if __name__ == '__main__':
     con = sqlite3.connect("main.db")
     cur = con.cursor()
     cur.execute("CREATE TABLE posts(id INTEGER PRIMARY KEY, url VARCHAR UNIQUE, cat VARCHAR)")
+    cur.execute("CREATE TABLE logs(url VARCHAR PRIMARY KEY)")
     console.success('Done...')
