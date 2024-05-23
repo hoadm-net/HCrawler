@@ -9,12 +9,13 @@ from .h_console import HConsole
 
 
 class HApp(object):
-    def __init__(self, base_dir: str, scan: bool | None, clean: bool | None, delay_time=1, max_page=200):
+    def __init__(self, base_dir: str, scan: bool | None, clean: bool | None, delay_time=1, max_page=200, verbose=False):
         self.base_dir = base_dir
         self.clean = clean
         self.scan = scan
         self.max_page = max_page
         self.delay_time = delay_time  # delay for 1 second
+        self.verbose = verbose
         self.errors = 0
 
         self.data_dir = path.join(self.base_dir, 'data')
@@ -55,6 +56,11 @@ class HApp(object):
     def _clean_str(inp: str) -> str:
         return bytes(inp, 'utf-8').decode('utf-8', 'ignore')
 
+    def _debug(self, msg) -> None:
+        if not self.verbose:
+            return
+        self.console.warning(msg)
+
     # Helpers
     def _get_link_by_cat(self, cat: str, page: int) -> str:
         cat_id = self.categories[cat]
@@ -72,7 +78,7 @@ class HApp(object):
                 )
             return False
         except sqlite3.IntegrityError as e:
-            print(e)
+            self._debug(e)
             return True
 
     # Write files
@@ -140,7 +146,7 @@ class HApp(object):
                             )
                         self.errors = 0
                     except sqlite3.IntegrityError as e:
-                        print(e)
+                        self._debug(e)
                         self.errors += 1
                         if self.errors >= 1000:
                             raise KeyboardInterrupt('Exceeded maximum error times')
