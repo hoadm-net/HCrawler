@@ -53,6 +53,15 @@ data
 ```
 Với 0000001 là số thứ tự ngẫu nhiên (do không phụ thuộc vào ngày phát hành, nên sau khi lấy thông tin sẽ trộn thông tin trước khi thu thập)
 
-
-
-
+## 4. Sử dụng
+```commandline
+./reset.sh
+python init.py
+python main.py --scan --page 350 --verbose
+```
+## 5. Các thư viện phụ thuộc
+File requirements.txt thường không hoạt động tốt trên nhiều platforms. Nên cài đặt thủ công
+* requests
+* bs4
+* rich
+* tqdm
