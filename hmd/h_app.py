@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from os import path, mkdir, remove
 import shutil
 import requests
@@ -5,18 +6,20 @@ from tqdm import tqdm
 from bs4 import BeautifulSoup
 import time
 import sqlite3
+import re
 from .h_console import HConsole
 
 
 class HApp(object):
-    def __init__(self, base_dir: str, scan: bool | None, clean: bool | None, delay_time=1, max_page=200, verbose=False):
+    def __init__(self, base_dir: str, scan: bool | None, clean: bool | None, delay_time=1, from_date='01_01_2024', days=365, verbose=False):
         self.base_dir = base_dir
         self.clean = clean
         self.scan = scan
-        self.max_page = max_page
         self.delay_time = delay_time  # delay for 1 second
         self.verbose = verbose
         self.errors = 0
+        self.from_date = datetime.strptime(from_date, "%d_%m_%Y").date()
+        self.days = days
 
         self.data_dir = path.join(self.base_dir, 'data')
         self.hnews_2_t_path = path.join(self.data_dir, 'hnews_2_t')
@@ -28,33 +31,23 @@ class HApp(object):
 
         self.console = HConsole()
         self.categories = {
-            'thoisu': '1854',
-            'kinhte': '18549',
-            'thegioi': '18566',
-            'doisong': '18517',
-            'suckhoe': '18565',
-            'thethao': '185318',
-            'giaoduc': '18526',
-            'congnghe': '185315',
+            'thoisu': '1001005',
+            'kinhte': '1003159',
+            'thegioi': '1001002',
+            'doisong': '1002966',
+            'suckhoe': '1003750',
+            'thethao': '1002565',
+            'giaoduc': '1003497',
+            'khoahoc': '1001009',
         }
-
-        self.slug = {
-            'thoisu': 'thời sự',
-            'kinhte': 'kinh tế',
-            'thegioi': 'thế giới',
-            'doisong': 'đời sống',
-            'suckhoe': 'sức khỏe',
-            'thethao': 'thể thao',
-            'giaoduc': 'giáo dục',
-            'congnghe': 'tin tức công nghệ',
-        }
-
-        self.current_page = 1
         self.sqlite_conn = sqlite3.connect(path.join(base_dir, 'main.db'))
 
     @staticmethod
     def _clean_str(inp: str) -> str:
-        return bytes(inp, 'utf-8').decode('utf-8', 'ignore')
+        output = bytes(inp, 'utf-8').decode('utf-8', 'ignore').strip()
+        output = re.sub(r'\n', ' ', output)
+        output = re.sub(' +', ' ', output)
+        return output
 
     def _debug(self, msg) -> None:
         if not self.verbose:
@@ -62,9 +55,9 @@ class HApp(object):
         self.console.warning(msg)
 
     # Helpers
-    def _get_link_by_cat(self, cat: str, page: int) -> str:
+    def _get_link_by_cat(self, cat: str, dtime: str) -> str:
         cat_id = self.categories[cat]
-        return f"https://thanhnien.vn/timelinelist/{cat_id}/{page}.htm"
+        return f"https://vnexpress.net/category/day/cateid/{cat_id}/fromdate/{dtime}/todate/{dtime}"
 
     # Database
     def _delete_row(self, row_id: str) -> None:
@@ -111,48 +104,31 @@ class HApp(object):
 
     # Main logic
     def _get_posts(self) -> None:
-        for page in tqdm(range(self.current_page, self.max_page)):
-            for cat in self.categories:
-                link = self._get_link_by_cat(cat, page)
+        for i in tqdm(range(self.days)):
+            calculating_date = self.from_date + timedelta(days=i)
+            ts = str(int(time.mktime(calculating_date.timetuple())))
 
-                if self._is_exists(link):  # data is exists
-                    continue
+            for cat, cat_id in self.categories.items():
+                post_url = self._get_link_by_cat(cat, ts)
 
-                response = requests.get(link)
-
-                if not response.text or response.status_code != 200:
-                    return
-
-                soup = BeautifulSoup(response.text, 'html.parser')
-                articles = soup.find_all('div', class_='box-category-item')
-                for art in articles:
-                    cat_tag = art.find_all('a', class_='box-category-category')
-                    link_tag = art.find_all('a', class_='box-category-related-link-title')
-
-                    if not cat_tag or not link_tag:
-                        continue
-
-                    cat_text = cat_tag[0].text.lower()
-                    # filter not clear article (belong to sub-cat)
-                    if cat != 'thethao' and (cat_text != self.slug[cat]):
-                        continue
-
-                    link = link_tag[0]['href'].strip()
-                    try:
-                        with self.sqlite_conn:
-                            self.sqlite_conn.execute(
-                                "INSERT INTO posts(url, cat) VALUES(?, ?)",
-                                (link, cat)
-                            )
-                        self.errors = 0
-                    except sqlite3.IntegrityError as e:
-                        self._debug(e)
-                        self.errors += 1
-                        if self.errors >= 1000:
-                            raise KeyboardInterrupt('Exceeded maximum error times')
-                        continue
+                response = requests.get(post_url)
+                if response.status_code == 200 and response.text:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    articles = soup.find_all('article', class_='item-news item-news-common')
+                    for article in articles:
+                        anchorTags = article.find_all('a')
+                        if anchorTags:
+                            link = anchorTags[0]['href']
+                            try:
+                                with self.sqlite_conn:
+                                    self.sqlite_conn.execute(
+                                        "INSERT INTO posts(url, cat) VALUES(?, ?)",
+                                        (link, cat)
+                                    )
+                                self.errors = 0
+                            except sqlite3.IntegrityError as e:
+                                self._debug(e)
                 time.sleep(self.delay_time)
-            self.current_page += 1
 
     def _get_data(self):
         i = 1
@@ -164,27 +140,28 @@ class HApp(object):
         while posts:
             for post in tqdm(posts, desc=f"Iter {i}/{counter[0]//10}"):
                 file_mame = f"{post[0]:07}"
-                post_url = f"https://thanhnien.vn/{post[1]}"
+                post_url = post[1]
                 cat_name = post[2]
 
-                resp = requests.get(post_url)
+                response = requests.get(post_url)
 
-                if resp.status_code == 200 and resp.text != "":
+                if response.status_code == 200 and response.text:
                     # parse
-                    soup = BeautifulSoup(resp.text, 'html.parser')
+                    soup = BeautifulSoup(response.text, 'html.parser')
 
-                    post_title = soup.find_all(class_='detail-title')
-                    post_desc = soup.find_all(class_='detail-sapo')
-                    post_content = soup.find_all(class_='detail-cmain')
+                    title_e = soup.find('h1', class_='title-detail')
+                    desc_e = soup.find('p', class_='description')
+                    content_e = soup.find('article', class_='fck_detail')
 
-                    if post_title and post_desc and post_content:
-                        post_title_tag = post_title[0]
-                        post_desc_tag = post_desc[0]
-                        post_content_tag = post_content[0]
+                    if title_e and desc_e and content_e:
+                        title = self._clean_str(title_e.text)
 
-                        title = self._clean_str(post_title_tag.text.strip())
-                        desc = self._clean_str(post_desc_tag.text.strip())
-                        content = self._clean_str(post_content_tag.text.strip())
+                        location_stamp = desc_e.find('span', class_='location-stamp')
+                        if location_stamp:
+                            location_stamp.decompose()
+
+                        desc = self._clean_str(desc_e.text)
+                        content = self._clean_str(content_e.text)
 
                         if cat_name in ['kinhte', 'thoisu']:
                             self._write_t(file_mame, title, cat_name, 2)
@@ -211,8 +188,6 @@ class HApp(object):
                 shutil.rmtree(self.data_dir)
                 self.console.info("Old data were removed!")
                 self.console.info("="*50)
-
-                remove(path.join(self.base_dir, 'log.txt'))
             else:
                 return
 
@@ -239,10 +214,6 @@ class HApp(object):
             for cat in self.categories:
                 mkdir(path.join(ds, cat))
 
-        if path.exists(path.join(self.base_dir, 'log.txt')):
-            with open(path.join(self.base_dir, 'log.txt'), 'r') as fp:
-                self.current_page = int(fp.read())
-
     def run(self):
         if self.scan:
             self.console.info("Crawling post info...")
@@ -254,6 +225,4 @@ class HApp(object):
         self.console.success("Done...")
 
     def quit(self):
-        with open(path.join(self.base_dir, 'log.txt'), mode='w+') as fp:
-            fp.write(f"{self.current_page}")
         self.console.info("Quiting...")

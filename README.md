@@ -1,11 +1,9 @@
 # Hoadm Crawler
 ## 1. Tổng quan
 Tool thu thập dữ liệu từ các trang báo tiếng Việt, phục vụ cho mục đích học tập :). Công cụ thu thập dữ liệu từ các
-trang báo điện tử lớn như:
+trang báo điện tử:
 
-* [Thanh niên](https://thanhnien.vn/)
-* [VnExpress](https://vnexpress.net/) -> chưa thực hiện
-* [Tuổi trẻ](https://tuoitre.vn/) -> chưa thực hiiện
+* [VnExpress](https://vnexpress.net/)
 
 
 ## 2. Phiên bản

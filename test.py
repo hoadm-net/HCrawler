@@ -6,7 +6,7 @@ if __name__ == '__main__':
     try:
         with con:
             cur = con.cursor()
-            for row in cur.execute("SELECT * FROM posts LIMIT 10"):
+            for row in cur.execute("SELECT * FROM posts"):
                 print(row)
                 print("crawling...")
     except sqlite3.IntegrityError as e:
