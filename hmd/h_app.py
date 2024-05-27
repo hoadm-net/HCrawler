@@ -105,7 +105,8 @@ class HApp(object):
     # Main logic
     def _get_posts(self) -> None:
         for i in tqdm(range(self.days)):
-            calculating_date = self.from_date + timedelta(days=i)
+            calculating_date = self.from_date - timedelta(days=i)
+            print(calculating_date)
             ts = str(int(time.mktime(calculating_date.timetuple())))
 
             for cat, cat_id in self.categories.items():
